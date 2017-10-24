@@ -3,80 +3,56 @@ import matplotlib.pyplot as plt
 import scipy.constants as const
 import scipy.integrate as sciint
 
-
-def shot_noise(nu, power):
-    return np.sqrt(2. * const.Planck * nu * power)
-
-def correlation_noise(nu, power, delta_nu, correlation):
-    return np.sqrt(correlation * power**2. / delta_nu)
-
-def tes_phonon_noise_P(Tbolo, G, gamma):
-    return np.sqrt(4. * gamma * const.Boltzmann * G * Tbolo**2.)
-
-# TES Johnson noise should be a small contribution, but seems to end up too large
-# at high frequencies where not suppressed by ETF, for our standard TES parameters...
-# is this correct?
-def tes_johnson_noise_P(nu, T, Rfrac, k, Tc, Rn, R_L, C, Popt=0):
-    R_0 = Rn*Rfrac
-    I_0 = np.sqrt(Psat(k, Tc, T, Popt) / R_0)
-    tau = C / G(k, Tc)
-    return np.sqrt(4. * const.Boltzmann * Tc * I_0**2 * R_0) * \
-            np.sqrt(1 + (2*np.pi * nu)**2. * tau**2.)
-
-def load_johnson_noise_I(nu, T_L, R_L, R_bolo, L):
-    S = np.sqrt(4. * const.Boltzmann * R_L * T_L) / (R_L + R_bolo + 1j * (2.*np.pi) * nu * L)
-    return np.abs(S)
-
-def dIdP(nu, R_L, R_0, I_0, L, alpha, beta, C, G, Tc):
-    P_J = I_0**2. * R_0
-    loopgain = P_J * alpha / (G * Tc)
-    tau = C / G
-    tau_el = L / (R_L + R_0*(1 + beta))
-    tau_I = tau / (1 - loopgain)
-
-    S = (-1. / (I_0 * R_0)) * ( L / (tau_el * R_0 * loopgain) +
-                                (1 - R_L / R_0) +
-                                1j * 2.*np.pi*nu * (L*tau / (R_0*loopgain)) * (1./tau_I + 1./tau_el) -
-                                (2.*np.pi*nu)**2. * tau * L / (loopgain * R_0))**-1
-    return np.abs(S)
-
-
-def dIdP_2(nu, T, Rfrac, k, Tc, Rn, R_L, L, alpha, beta, C, Popt=0):
-    G = 3.*k*(Tc**2.)
-    R_0 = Rn*Rfrac
-    I_0 = np.sqrt(Psat(k, Tc, T, Popt) / R_0)
-    P_J = I_0**2. * R_0
-    loopgain = P_J * alpha / (G * Tc)
-    G = 3.*k*(Tc**2.)
-    tau = C / G
-    tau_el = L / (R_L + R_0*(1 + beta))
-    tau_I = tau / (1 - loopgain)
-
-    S = (-np.sqrt(2.) / (I_0 * R_0)) * ( L / (tau_el * R_0 * loopgain) +
-                                (1 - R_L / R_0) +
-                                1j * 2.*np.pi*nu * (L*tau / (R_0*loopgain)) * (1./tau_I + 1./tau_el) -
-                                (2.*np.pi*nu)**2. * tau * L / (loopgain * R_0))**-1
-    return np.abs(S)
-
-
-def Psat(k, Tc, T, Popt=0):
-    return k*(Tc**3 - T**3) - Popt
-
-def G(k, Tc):
-    return 3.*k*(Tc**2.)
-
-def readout_noise_I():
-    return 1.0e-11
-
-def tau_natural(k, Tc, C):
-    G = 3.*k*(Tc**2.)
-    tau = C / G
-    print tau
-
-def planck_spectral_density(nu, temp):
-    dPdnu = hPlanck * nu / (np.exp(hPlanck * nu / (kB * temp)) - 1) * 1e12
+def Pplanck(f, T):
+    dPdnu = const.Planck * f / (np.exp(const.Planck * f / (const.Boltzmann * T)) - 1)
     return dPdnu
 
-def planck_power(temp, nu_min, nu_max):
-    power = sciint.quad(planck_spectral_density, a=nu_min, b=nu_max, args=(temp))
-    return power
+class TES:
+    def __init__(self, n, k, Tc, Rn, Popt, fcenter, fBW, optical_eff, nei_readout):
+        self.n = n
+        self.k = k
+        self.Tc = Tc
+        self.Rn = Rn
+        self.Popt = Popt
+        self.fBW = fBW
+        self.fcenter = fcenter
+        self.eff = optical_eff
+        self.nei = nei_readout
+        self.dPdT_eval = self.dPdT()
+
+    def Psat(self, Tb):
+        return self.k * (self.Tc**self.n - Tb**self.n)
+
+    def nep_phonon(self, Tb):
+        gamma = (self.n+1.0) / (2.0*self.n + 3.0) * \
+                (1.0 - (Tb / self.Tc)**(2.0*self.n+3.0)) / (1.0 - (Tb / self.Tc)**(self.n+1.0))
+        G = self.k * self.Tc**self.n
+        return np.sqrt(4. * gamma * const.Boltzmann * G * self.Tc**2.)
+
+    def nep_photon(self, correlation):
+        nep_uncorr = np.sqrt(2. * const.Planck * self.fcenter * self.Popt)
+        nep_corr = np.sqrt(correlation * self.Popt**2. / self.fBW)
+        return np.sqrt(nep_uncorr**2. + nep_corr**2.)
+
+    def nep_readout(self, Tb, Rfrac):
+        Vbias = np.sqrt((self.Psat(Tb) - self.Popt) * self.Rn * Rfrac)
+        return self.nei * Vbias
+
+    def dPdT(self):
+        def integrand(f, T):
+            return f**2 * np.exp(const.Planck * f / (const.Boltzmann * T)) / \
+                   (np.exp(const.Planck * f / (const.Boltzmann * T)) - 1.)**2.
+        T = self.Popt / (self.eff * const.Boltzmann * self.fBW)
+        integral = sciint.quad(integrand, a=self.fcenter - self.fBW/2,
+                               b=self.fcenter + self.fBW/2,
+                               args=(T))
+        dPdT = self.eff * const.Planck**2 / (const.Boltzmann * T**2.) * integral[0]
+        return dPdT
+
+    def nep_total(self, Tb, correlation, Rfrac):
+        return np.sqrt(self.nep_phonon(Tb)**2. +
+                       self.nep_readout(Tb, Rfrac)**2. +
+                       self.nep_photon(correlation)**2)
+
+    def mapping_speed(self, Tb, correlation, Rfrac):
+        return 1. / ((self.nep_total(Tb, correlation, Rfrac) / self.dPdT_eval)**2.)
