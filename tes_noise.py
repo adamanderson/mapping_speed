@@ -26,7 +26,7 @@ class TES:
     def nep_phonon(self, Tb):
         gamma = (self.n+1.0) / (2.0*self.n + 3.0) * \
                 (1.0 - (Tb / self.Tc)**(2.0*self.n+3.0)) / (1.0 - (Tb / self.Tc)**(self.n+1.0))
-        G = self.k * self.Tc**self.n
+        G = self.k * self.Tc**(self.n-1)
         return np.sqrt(4. * gamma * const.Boltzmann * G * self.Tc**2.)
 
     def nep_photon(self, correlation):
@@ -36,23 +36,26 @@ class TES:
 
     def nep_readout(self, Tb, Rfrac):
         Vbias = np.sqrt((self.Psat(Tb) - self.Popt) * self.Rn * Rfrac)
-        return self.nei * Vbias
+        return self.nei * Vbias / np.sqrt(2.)
 
     def dPdT(self):
         def integrand(f, T):
-            return f**2 * np.exp(const.Planck * f / (const.Boltzmann * T)) / \
+            return 1e12 * f**2 * np.exp(const.Planck * f / (const.Boltzmann * T)) / \
                    (np.exp(const.Planck * f / (const.Boltzmann * T)) - 1.)**2.
         T = self.Popt / (self.eff * const.Boltzmann * self.fBW)
         integral = sciint.quad(integrand, a=self.fcenter - self.fBW/2,
                                b=self.fcenter + self.fBW/2,
                                args=(T))
-        dPdT = self.eff * const.Planck**2 / (const.Boltzmann * T**2.) * integral[0]
+        dPdT = self.eff * const.Planck**2 / (const.Boltzmann * T**2.) * integral[0] * 1e-12
         return dPdT
 
     def nep_total(self, Tb, correlation, Rfrac):
         return np.sqrt(self.nep_phonon(Tb)**2. +
                        self.nep_readout(Tb, Rfrac)**2. +
                        self.nep_photon(correlation)**2)
+
+    def net_total(self, Tb, correlation, Rfrac):
+        return self.nep_total(Tb, correlation, Rfrac) / (np.sqrt(2) *self.dPdT_eval)
 
     def mapping_speed(self, Tb, correlation, Rfrac):
         return 1. / ((self.nep_total(Tb, correlation, Rfrac) / self.dPdT_eval)**2.)
