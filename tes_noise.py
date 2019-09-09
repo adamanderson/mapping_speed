@@ -66,8 +66,16 @@ def Vbias(Psat, Popt, Rbolo):
 def Psat(k, Tc, T, Popt=0):
     return k*(Tc**3 - T**3) - Popt
 
-def G(k, Tc):
-    return 3.*k*(Tc**2.)
+def G(Tc, k=None, Psat=None, Popt=None, Tbath=None):
+    # check arguments
+    if k is None and (Psat is None or Popt is None or Tbath is None):
+        raise ValueError('Either argument `k` must be set, or all of '
+                         'arguments `Psat`, `Popt`, and `Tbath` must be set.')
+
+    if k is not None:
+        return 3.*k*(Tc**2.)
+    else:
+        return 3.*Tc**2. * (Psat + Popt) / (Tc**3 - Tbath**3)
 
 def readout_noise_I(Ibase, Lsquid, fbias, Rbolo):
     return Ibase * np.abs(1 + 1j*2*np.pi*fbias*Lsquid / Rbolo)
