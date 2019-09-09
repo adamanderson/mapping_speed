@@ -55,7 +55,7 @@ def dIdP_2(nu, T, Rfrac, k, Tc, Rn, R_L, L, alpha, beta, C, Popt=0):
                                 (2.*np.pi*nu)**2. * tau * L / (loopgain * R_0))**-1
     return np.abs(S)
 
-def Vbias(Psat, Popt, Rbolo):
+def Vbias_rms(Psat, Popt, Rbolo):
     PJ = Psat - Popt
     Vbias = np.sqrt(PJ * Rbolo)
     return Vbias
@@ -80,9 +80,10 @@ def readout_noise_I(Ibase, Lsquid, fbias, Rbolo):
 def tau_natural(k, Tc, C):
     G = 3.*k*(Tc**2.)
     tau = C / G
+    return tau
 
 def planck_spectral_density(nu, temp):
-    dPdnu = hPlanck * nu / (np.exp(hPlanck * nu / (kB * temp)) - 1) * 1e12
+    dPdnu = const.Planck * nu / (np.exp(const.Planck * nu / (const.Boltzmann * temp)) - 1) * 1e12
     return dPdnu
 
 def planck_power(temp, nu_min, nu_max):
