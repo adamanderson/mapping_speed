@@ -20,24 +20,16 @@ def tes_johnson_noise_P(f, Tc, Psat, Popt=0, gamma=0.5, tau=0):
     return np.sqrt(gamma * 4. * const.Boltzmann * Tc * (Psat - Popt)) * \
             np.sqrt(1 + (2*np.pi * f)**2. * tau**2.)
 
-def load_johnson_noise_I(T_L, R_L, R_bolo, L):
+def load_johnson_noise_I(T_L, R_L, R_bolo):
     return np.sqrt(4. * const.Boltzmann * R_L * T_L) / R_bolo
 
-def dIdP(nu, R_L, R_0, I_0, L, alpha, beta, C, G, Tc):
-    P_J = I_0**2. * R_0
-    loopgain = P_J * alpha / (G * Tc)
-    tau = C / G
-    tau_el = L / (R_L + R_0*(1 + beta))
-    tau_I = tau / (1 - loopgain)
+def dIdP(Vbias_rms, L=None):
+    if L is not None:
+        return np.sqrt(2.) / Vbias_rms * L / (1 + L)
+    else:
+        return np.sqrt(2.) / Vbias_rms
 
-    S = (-1. / (I_0 * R_0)) * ( L / (tau_el * R_0 * loopgain) +
-                                (1 - R_L / R_0) +
-                                1j * 2.*np.pi*nu * (L*tau / (R_0*loopgain)) * (1./tau_I + 1./tau_el) -
-                                (2.*np.pi*nu)**2. * tau * L / (loopgain * R_0))**-1
-    return np.abs(S)
-
-
-def dIdP_2(nu, T, Rfrac, k, Tc, Rn, R_L, L, alpha, beta, C, Popt=0):
+def dIdP_full(nu, T, Rfrac, k, Tc, Rn, R_L, L, alpha, beta, C, Popt=0):
     G = 3.*k*(Tc**2.)
     R_0 = Rn*Rfrac
     I_0 = np.sqrt(Psat(k, Tc, T, Popt) / R_0)
