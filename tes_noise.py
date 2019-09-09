@@ -13,12 +13,13 @@ def correlation_noise(nu, power, delta_nu, correlation):
 def tes_phonon_noise_P(Tbolo, G, gamma):
     return np.sqrt(4. * gamma * const.Boltzmann * G * Tbolo**2.)
 
-# TES Johnson noise should be a small contribution, but seems to end up too large
-# at high frequencies where not suppressed by ETF, for our standard TES parameters...
-# is this correct?
-def tes_johnson_noise_P(f, Tc, Psat, Popt=0, gamma=0.5, tau=0):
-    return np.sqrt(gamma * 4. * const.Boltzmann * Tc * (Psat - Popt)) * \
-            np.sqrt(1 + (2*np.pi * f)**2. * tau**2.)
+def tes_johnson_noise_I(f, Tc, R0, L, tau=0):
+    return np.sqrt(4. * const.Boltzmann * Tc * R0) * \
+            np.sqrt(1 + (2*np.pi * f)**2. * tau**2.) / L
+
+def tes_johnson_noise_P(f, Tc, Psat, L, Popt=0, tau=0):
+    return np.sqrt(4. * const.Boltzmann * Tc * (Psat - Popt)) * \
+            np.sqrt(1 + (2*np.pi * f)**2. * tau**2.) / L
 
 def load_johnson_noise_I(T_L, R_L, R_bolo):
     return np.sqrt(4. * const.Boltzmann * R_L * T_L) / R_bolo
