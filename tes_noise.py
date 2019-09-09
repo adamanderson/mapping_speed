@@ -20,9 +20,8 @@ def tes_johnson_noise_P(f, Tc, Psat, Popt=0, gamma=0.5, tau=0):
     return np.sqrt(gamma * 4. * const.Boltzmann * Tc * (Psat - Popt)) * \
             np.sqrt(1 + (2*np.pi * f)**2. * tau**2.)
 
-def load_johnson_noise_I(nu, T_L, R_L, R_bolo, L):
-    S = np.sqrt(4. * const.Boltzmann * R_L * T_L) / (R_L + R_bolo + 1j * (2.*np.pi) * nu * L)
-    return np.abs(S)
+def load_johnson_noise_I(T_L, R_L, R_bolo, L):
+    return np.sqrt(4. * const.Boltzmann * R_L * T_L) / R_bolo
 
 def dIdP(nu, R_L, R_0, I_0, L, alpha, beta, C, G, Tc):
     P_J = I_0**2. * R_0
